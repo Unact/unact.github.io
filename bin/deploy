@@ -1,0 +1,124 @@
+#!/usr/bin/env ruby
+
+require "dotenv/load"
+require "github_api"
+require "optparse"
+require "yaml"
+
+LOG_SEPARATOR = "======================="
+INDEX_VERSION_PREFIX = "/releases/download/"
+MOBILE_APPS_PATH = "mobile_apps"
+MOBILE_APPS = Dir["#{MOBILE_APPS_PATH}/*"].map{|f| f.split("#{MOBILE_APPS_PATH}/").last}
+CURRENT_DIR = Dir.pwd
+
+def print_log_action message
+  system("echo #{[LOG_SEPARATOR, message, LOG_SEPARATOR].join(' ')}")
+end
+
+def log_action action, &block
+  print_log_action("Start #{action}")
+  yield
+  print_log_action("Finish #{action}")
+end
+
+options = {}
+OptionParser.new do |opt|
+  opt.on("-app", "--app_name APP_NAME", "Application repository name") { |o| options[:app_name] = o }
+  opt.on("-v", "--version VERSION", "Semantic version") { |o| options[:version] = o }
+end.parse!
+
+begin
+  raise "Version not specified" if options[:version].nil?
+  raise "Application not specified" if options[:app_name].nil?
+
+  app_name = options[:app_name]
+  unless MOBILE_APPS.include?(app_name)
+    raise "Passed an invalid application. Available applications: #{MOBILE_APPS.join(', ')}"
+  end
+
+  app_path = "../#{app_name}"
+  app_pubspec = YAML.load_file("#{app_path}/pubspec.yaml")
+
+  full_old_version = app_pubspec["version"]
+  old_version, old_build_version = full_old_version.split("+")
+  new_version = options[:version]
+  new_build_version = old_version == new_version ? (old_build_version.to_i + 1).to_s : "1"
+  full_new_version = "#{new_version}+#{new_build_version}"
+
+  Dir.chdir(app_path) do
+    log_action("App build") do
+      raise "iOS build failed" unless system("flutter build ios --release")
+      raise "Android build failed" unless system("flutter build apk --release")
+    end
+
+    log_action("iOS archive") do
+      raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
+      raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner")
+    end
+
+    log_action("Github app version change") do
+      pubspec_path = "pubspec.yaml"
+      pubspec_contents = File.read(pubspec_path)
+      new_contents = pubspec_contents.gsub(
+        "version: #{full_old_version}",
+        "version: #{full_new_version}"
+      )
+      File.write(pubspec_path, new_contents)
+
+      raise "Git add failed" unless system("git add #{pubspec_path}")
+      raise "Git commit failed" unless system("git commit -S -m '#{full_new_version}'")
+      raise "Git push failed" unless system("git push")
+    end
+  end
+
+  log_action("Website version change") do
+    manifest_path = "#{MOBILE_APPS_PATH}/#{app_name}/manifest.plist"
+    manifest_contents = File.read(manifest_path)
+    new_contents = manifest_contents.gsub(
+      old_version,
+      new_version
+    )
+    File.write(manifest_path, new_contents)
+
+    index_path = "index.html"
+    index_contents = File.read(index_path)
+    new_contents = index_contents.gsub(
+      app_name + INDEX_VERSION_PREFIX + old_version,
+      app_name + INDEX_VERSION_PREFIX + new_version
+    )
+    File.write(index_path, new_contents)
+
+    raise "Git add failed" unless system("git add #{manifest_path}")
+    raise "Git add failed" unless system("git add #{index_path}")
+    raise "Git commit failed" unless system("git commit -S -m '#{full_new_version}'")
+    raise "Git push failed" unless system("git push")
+  end
+
+  log_action("Github assets deployment") do
+    raise "Github token not set" if ENV["GITHUB_TOKEN"].nil?
+
+    github_api = Github.new(basic_auth: ENV["GITHUB_TOKEN"])
+    releases = github_api.repos.releases
+    new_release = releases.create("unact", app_name, tag_name: full_new_version)
+
+    releases.assets.upload(
+      "unact",
+      app_name,
+      new_release["id"],
+      "../#{app_name}/build/ios/iphoneos/Runner/Runner.ipa",
+      name: "Runner.ipa",
+      content_type: "application/octet-stream"
+    )
+    releases.assets.upload(
+      "unact",
+      app_name,
+      new_release["id"],
+      "../#{app_name}/build/app/outputs/apk/release/app-release.apk",
+      name: "app-release.apk",
+      content_type: "application/octet-stream"
+    )
+  end
+rescue StandardError => e
+  Dir.chdir(CURRENT_DIR)
+  p e.message
+end
