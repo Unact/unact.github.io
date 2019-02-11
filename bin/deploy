@@ -102,9 +102,14 @@ begin
 
     github_api = Github.new(basic_auth: ENV["GITHUB_TOKEN"])
     releases = github_api.repos.releases
+    references = github_api.git_data.references
     old_release = releases.list(ORG, app_name).find{|release| release.tag_name == old_version}
 
-    releases.update(ORG, app_name, old_release.id, tag_name: full_old_version) unless old_release.nil?
+    if !old_release.nil? && old_version == new_version
+      releases.update(ORG, app_name, old_release.id, tag_name: full_old_version)
+      references.delete(ORG, app_name, "tags/#{old_version}")
+    end
+
     new_release = releases.create(ORG, app_name, tag_name: new_version)
 
     releases.assets.upload(
