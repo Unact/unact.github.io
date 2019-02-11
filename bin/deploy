@@ -55,7 +55,7 @@ begin
 
     log_action("iOS archive") do
       raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
-      raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner")
+      raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner -allowProvisioningUpdates")
     end
 
     log_action("Github app version change") do
