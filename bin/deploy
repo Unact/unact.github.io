@@ -45,6 +45,7 @@ begin
   new_version = options[:version]
   new_build_version = old_version == new_version ? (old_build_version.to_i + 1).to_s : "1"
   full_new_version = "#{new_version}+#{new_build_version}"
+  target_commitish = ""
 
   Dir.chdir(app_path) do
     log_action("App build") do
@@ -69,6 +70,7 @@ begin
       raise "Git add failed" unless system("git add #{pubspec_path}")
       raise "Git commit failed" unless system("git commit -S -m '#{full_new_version}'")
       raise "Git push failed" unless system("git push")
+      target_commitish = `git rev-parse HEAD`.chop
     end
   end
 
@@ -110,7 +112,7 @@ begin
       references.delete(ORG, app_name, "tags/#{old_version}")
     end
 
-    new_release = releases.create(ORG, app_name, tag_name: new_version)
+    new_release = releases.create(ORG, app_name, tag_name: new_version, target_commitish: target_commitish)
 
     releases.assets.upload(
       ORG,
