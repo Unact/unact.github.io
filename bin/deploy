@@ -96,7 +96,7 @@ begin
 
       raise "Git add failed" unless system("git add #{manifest_path}")
       raise "Git add failed" unless system("git add #{index_path}")
-      raise "Git commit failed" unless system("git commit -S -m '#{app_name} #{full_new_version}'")
+      raise "Git commit failed" unless system("git commit -S -m '#{app_name} #{new_version}'")
       raise "Git push failed" unless system("git push")
     end
   end
