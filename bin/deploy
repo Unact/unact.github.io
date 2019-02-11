@@ -5,6 +5,7 @@ require "github_api"
 require "optparse"
 require "yaml"
 
+ORG = "Unact"
 LOG_SEPARATOR = "======================="
 INDEX_VERSION_PREFIX = "/releases/download/"
 MOBILE_APPS_PATH = "mobile_apps"
@@ -71,31 +72,29 @@ begin
     end
   end
 
-  log_action("Website version change") do
-    manifest_path = "#{MOBILE_APPS_PATH}/#{app_name}/manifest.plist"
-    manifest_contents = File.read(manifest_path)
-    new_contents = manifest_contents.gsub(
-      old_version,
-      new_version
-    )
-    new_contents = manifest_contents.gsub(
-      full_old_version,
-      full_new_version
-    )
-    File.write(manifest_path, new_contents)
+  if old_version != new_version
+    log_action("Website version change") do
+      manifest_path = "#{MOBILE_APPS_PATH}/#{app_name}/manifest.plist"
+      manifest_contents = File.read(manifest_path)
+      new_contents = manifest_contents.gsub(
+        old_version,
+        new_version
+      )
+      File.write(manifest_path, new_contents)
 
-    index_path = "index.html"
-    index_contents = File.read(index_path)
-    new_contents = index_contents.gsub(
-      app_name + INDEX_VERSION_PREFIX + full_old_version,
-      app_name + INDEX_VERSION_PREFIX + full_new_version
-    )
-    File.write(index_path, new_contents)
+      index_path = "index.html"
+      index_contents = File.read(index_path)
+      new_contents = index_contents.gsub(
+        app_name + INDEX_VERSION_PREFIX + old_version,
+        app_name + INDEX_VERSION_PREFIX + new_version
+      )
+      File.write(index_path, new_contents)
 
-    raise "Git add failed" unless system("git add #{manifest_path}")
-    raise "Git add failed" unless system("git add #{index_path}")
-    raise "Git commit failed" unless system("git commit -S -m '#{app_name} #{full_new_version}'")
-    raise "Git push failed" unless system("git push")
+      raise "Git add failed" unless system("git add #{manifest_path}")
+      raise "Git add failed" unless system("git add #{index_path}")
+      raise "Git commit failed" unless system("git commit -S -m '#{app_name} #{full_new_version}'")
+      raise "Git push failed" unless system("git push")
+    end
   end
 
   log_action("Github assets deployment") do
@@ -103,20 +102,23 @@ begin
 
     github_api = Github.new(basic_auth: ENV["GITHUB_TOKEN"])
     releases = github_api.repos.releases
-    new_release = releases.create("unact", app_name, tag_name: full_new_version)
+    old_release = releases.list(ORG, app_name).find{|release| release.tag_name == old_version}
+
+    releases.update(ORG, app_name, old_release.id, tag_name: full_old_version) unless old_release.nil?
+    new_release = releases.create(ORG, app_name, tag_name: new_version)
 
     releases.assets.upload(
-      "unact",
+      ORG,
       app_name,
-      new_release["id"],
+      new_release.id,
       "../#{app_name}/build/ios/iphoneos/Runner/Runner.ipa",
       name: "Runner.ipa",
       content_type: "application/octet-stream"
     )
     releases.assets.upload(
-      "unact",
+      ORG,
       app_name,
-      new_release["id"],
+      new_release.id,
       "../#{app_name}/build/app/outputs/apk/release/app-release.apk",
       name: "app-release.apk",
       content_type: "application/octet-stream"
