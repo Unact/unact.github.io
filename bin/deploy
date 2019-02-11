@@ -78,13 +78,17 @@ begin
       old_version,
       new_version
     )
+    new_contents = manifest_contents.gsub(
+      full_old_version,
+      full_new_version
+    )
     File.write(manifest_path, new_contents)
 
     index_path = "index.html"
     index_contents = File.read(index_path)
     new_contents = index_contents.gsub(
-      app_name + INDEX_VERSION_PREFIX + old_version,
-      app_name + INDEX_VERSION_PREFIX + new_version
+      app_name + INDEX_VERSION_PREFIX + full_old_version,
+      app_name + INDEX_VERSION_PREFIX + full_new_version
     )
     File.write(index_path, new_contents)
 
