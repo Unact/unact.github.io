@@ -49,25 +49,27 @@ begin
 
   Dir.chdir(app_path) do
     log_action("App build") do
-      raise "iOS build failed" unless system("flutter build ios --release")
-      raise "Android build failed" unless system("flutter build apk --release")
-    end
+      begin
+        pubspec_path = "pubspec.yaml"
+        pubspec_contents = File.read(pubspec_path)
+        new_contents = pubspec_contents.gsub(
+          "version: #{full_old_version}",
+          "version: #{full_new_version}"
+        )
+        File.write(pubspec_path, new_contents)
 
-    log_action("iOS archive") do
-      raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
-      raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner -allowProvisioningUpdates")
+        raise "iOS build failed" unless system("flutter build ios --release")
+        raise "Android build failed" unless system("flutter build apk --release")
+        raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
+        raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner -allowProvisioningUpdates")
+      rescue StandardError => e
+        File.write(pubspec_path, pubspec_contents)
+        raise e
+      end
     end
 
     log_action("Github app version change") do
-      pubspec_path = "pubspec.yaml"
-      pubspec_contents = File.read(pubspec_path)
-      new_contents = pubspec_contents.gsub(
-        "version: #{full_old_version}",
-        "version: #{full_new_version}"
-      )
-      File.write(pubspec_path, new_contents)
-
-      raise "Git add failed" unless system("git add #{pubspec_path}")
+      raise "Git add failed" unless system("git add pubspec.yaml")
       raise "Git commit failed" unless system("git commit -S -m '#{full_new_version}'")
       raise "Git push failed" unless system("git push")
       target_commitish = `git rev-parse HEAD`.chop
