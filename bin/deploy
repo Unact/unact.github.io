@@ -43,7 +43,7 @@ begin
   full_old_version = app_pubspec["version"]
   old_version, old_build_version = full_old_version.split("+")
   new_version = options[:version]
-  new_build_version = old_version == new_version ? (old_build_version.to_i + 1).to_s : "1"
+  new_build_version = old_version == new_version ? old_build_version : (old_build_version.to_i + 1).to_s
   full_new_version = "#{new_version}+#{new_build_version}"
   target_commitish = ""
 
@@ -69,9 +69,12 @@ begin
     end
 
     log_action("Github app version change") do
-      raise "Git add failed" unless system("git add pubspec.yaml")
-      raise "Git commit failed" unless system("git commit -S -m '#{full_new_version}'")
-      raise "Git push failed" unless system("git push")
+      if old_version != new_version
+        raise "Git add failed" unless system("git add pubspec.yaml")
+        raise "Git commit failed" unless system("git commit -S -m '#{full_new_version}'")
+        raise "Git push failed" unless system("git push")
+      end
+
       target_commitish = `git rev-parse HEAD`.chop
     end
   end
@@ -109,11 +112,7 @@ begin
     references = github_api.git_data.references
     old_release = releases.list(ORG, app_name).find{|release| release.tag_name == old_version}
 
-    if !old_release.nil? && old_version == new_version
-      releases.update(ORG, app_name, old_release.id, tag_name: full_old_version)
-      references.delete(ORG, app_name, "tags/#{old_version}")
-    end
-
+    references.delete(ORG, app_name, "tags/#{old_version}") if !old_release.nil? && old_version == new_version
     new_release = releases.create(ORG, app_name, tag_name: new_version, target_commitish: target_commitish)
 
     releases.assets.upload(
