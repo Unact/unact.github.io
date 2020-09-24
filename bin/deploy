@@ -119,7 +119,7 @@ begin
       ORG,
       app_name,
       new_release.id,
-      "../#{app_name}/build/ios/iphoneos/Runner/Runner.ipa",
+      Dir["../#{app_name}/build/ios/iphoneos/Runner/*.ipa"][0],
       name: "Runner.ipa",
       content_type: "application/octet-stream"
     )
