@@ -58,6 +58,7 @@ begin
         )
         File.write(pubspec_path, new_contents)
 
+        raise "Flutter clean" unless system("flutter clean")
         raise "Android build failed" unless system("flutter build apk --release")
         raise "iOS build failed" unless system("flutter build ios --config-only --release")
         raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
