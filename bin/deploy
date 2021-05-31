@@ -9,7 +9,15 @@ ORG = "Unact"
 LOG_SEPARATOR = "======================="
 INDEX_VERSION_PREFIX = "/releases/download/"
 MOBILE_APPS_PATH = "mobile_apps"
-MOBILE_APPS = Dir["#{MOBILE_APPS_PATH}/*"].map{|f| f.split("#{MOBILE_APPS_PATH}/").last}
+MOBILE_APPS = %w(
+  delman
+  diod
+  forwarder
+  repairman
+  retog
+  selvis_flutter
+  ubp
+)
 CURRENT_DIR = Dir.pwd
 
 def print_log_action message
@@ -39,6 +47,7 @@ begin
 
   app_path = "../#{app_name}"
   app_pubspec = YAML.load_file("#{app_path}/pubspec.yaml")
+  env_data = File.exists?("#{app_path}/.env") ? File.read("#{app_path}/.env").split("\n") : []
 
   full_old_version = app_pubspec["version"]
   old_version, old_build_version = full_old_version.split("+")
@@ -52,6 +61,7 @@ begin
       begin
         pubspec_path = "pubspec.yaml"
         pubspec_contents = File.read(pubspec_path)
+        build_args = env_data.map { |env_row| "--dart-define #{env_row}" }.join(" ")
         new_contents = pubspec_contents.gsub(
           "version: #{full_old_version}",
           "version: #{full_new_version}"
@@ -59,8 +69,8 @@ begin
         File.write(pubspec_path, new_contents)
 
         raise "Flutter clean" unless system("flutter clean")
-        raise "Android build failed" unless system("flutter build apk --release")
-        raise "iOS build failed" unless system("flutter build ios --config-only --release")
+        raise "Android build failed" unless system("flutter build apk --release #{build_args}")
+        raise "iOS build failed" unless system("flutter build ios --config-only --release #{build_args}")
         raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
         raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner -allowProvisioningUpdates")
       rescue StandardError => e
@@ -80,6 +90,8 @@ begin
   if old_version != new_version
     log_action("Website version change") do
       manifest_path = "#{MOBILE_APPS_PATH}/#{app_name}/manifest.plist"
+      break if File.exists?(manifest_path)
+
       manifest_contents = File.read(manifest_path)
       new_contents = manifest_contents.gsub(
         old_version,
