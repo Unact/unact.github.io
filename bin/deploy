@@ -61,6 +61,9 @@ begin
   Dir.chdir(app_path) do
     log_action("App build") do
       begin
+        raise "Git checkout failed" unless system("git checkout master")
+        raise "Git pull failed" unless system("git pull")
+
         pubspec_path = "pubspec.yaml"
         pubspec_contents = File.read(pubspec_path)
         build_args = env_data.map { |env_row| "--dart-define #{env_row}" }.join(" ")
