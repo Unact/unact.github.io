@@ -49,7 +49,7 @@ begin
 
   app_path = "../#{app_name}"
   app_pubspec = YAML.load_file("#{app_path}/pubspec.yaml")
-  env_data = File.exists?("#{app_path}/.env") ? File.read("#{app_path}/.env").split("\n") : []
+  env_data = File.exist?("#{app_path}/.env") ? File.read("#{app_path}/.env").split("\n") : []
 
   full_old_version = app_pubspec["version"]
   old_version, old_build_version = full_old_version.split("+")
@@ -95,7 +95,7 @@ begin
   if old_version != new_version
     log_action("Website version change") do
       manifest_path = "#{MOBILE_APPS_PATH}/#{app_name}/manifest.plist"
-      break unless File.exists?(manifest_path)
+      break unless File.exist?(manifest_path)
 
       manifest_contents = File.read(manifest_path)
       new_contents = manifest_contents.gsub(
