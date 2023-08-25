@@ -11,6 +11,7 @@ LOG_SEPARATOR = "======================="
 INDEX_VERSION_PREFIX = "/releases/download/"
 MOBILE_APPS_PATH = "mobile_apps"
 MOBILE_APPS = %w(
+  palman
   delman
   diod
   forwarder
