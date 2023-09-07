@@ -4,7 +4,7 @@ require "dotenv/load"
 require "github_api"
 require "optparse"
 require "yaml"
-require "byebug"
+require "debug"
 
 ORG = "Unact"
 LOG_SEPARATOR = "======================="
@@ -13,12 +13,9 @@ MOBILE_APPS_PATH = "mobile_apps"
 MOBILE_APPS = %w(
   palman
   delman
-  diod
   forwarder
   logisto
-  repairman
   retog
-  selvis_flutter
   ubp
 )
 CURRENT_DIR = Dir.pwd
