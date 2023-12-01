@@ -15,7 +15,6 @@ MOBILE_APPS = %w(
   delman
   forwarder
   logisto
-  retog
   ubp
 )
 CURRENT_DIR = Dir.pwd
