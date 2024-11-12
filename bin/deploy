@@ -16,6 +16,7 @@ MOBILE_APPS = %w(
   forwarder
   logisto
   ubp
+  umr
 )
 CURRENT_DIR = Dir.pwd
 
