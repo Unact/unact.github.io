@@ -12,11 +12,7 @@ INDEX_VERSION_PREFIX = "/releases/download/"
 MOBILE_APPS_PATH = "mobile_apps"
 MOBILE_APPS = %w(
   palman
-  delman
   forwarder
-  logisto
-  ubp
-  umr
 )
 CURRENT_DIR = Dir.pwd
 
@@ -30,10 +26,15 @@ def log_action action, &block
   print_log_action("Finish #{action}")
 end
 
-options = {}
+options = {
+  app_name: nil,
+  version: nil,
+  enterprise: false
+}
 OptionParser.new do |opt|
   opt.on("-app", "--app_name APP_NAME", "Application repository name") { |o| options[:app_name] = o }
   opt.on("-v", "--version VERSION", "Semantic version") { |o| options[:version] = o }
+  opt.on("-e", "--enterprise", "Build enterprise app") { options[:enterprise] = true}
 end.parse!
 
 begin
@@ -73,9 +74,7 @@ begin
 
         raise "Flutter clean" unless system("flutter clean")
         raise "Android build failed" unless system("flutter build apk --release #{build_args}")
-        raise "iOS build failed" unless system("flutter build ios --config-only --release #{build_args}")
-        raise "iOS archive failed" unless system("xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner clean archive -configuration release -sdk iphoneos -archivePath build/ios/iphoneos/Runner.xcarchive")
-        raise "iOS ipa build failed" unless system("xcodebuild -exportArchive -archivePath build/ios/iphoneos/Runner.xcarchive -exportOptionsPlist ios/ExportOptions.plist -exportPath build/ios/iphoneos/Runner -allowProvisioningUpdates")
+        raise "iOS ipa failed" unless system("flutter build ipa --release #{build_args} --export-method #{options[:enterprise] ? "enterprise" : "app-store"}")
       rescue StandardError => e
         File.write(pubspec_path, pubspec_contents)
         raise e
@@ -122,7 +121,6 @@ begin
 
     github_api = Github.new(basic_auth: ENV["GITHUB_TOKEN"])
     releases = github_api.repos.releases
-    references = github_api.git_data.references
     old_release = releases.list(ORG, app_name).find{|release| release.tag_name == old_version}
 
     releases.delete(ORG, app_name, old_release.id) if !old_release.nil? && old_version == new_version
@@ -133,7 +131,7 @@ begin
       ORG,
       app_name,
       new_release.id,
-      Dir["../#{app_name}/build/ios/iphoneos/Runner/*.ipa"][0],
+      Dir["../#{app_name}/build/ios/ipa/*.ipa"][0],
       name: "Runner.ipa",
       content_type: "application/octet-stream"
     )
@@ -146,6 +144,11 @@ begin
       content_type: "application/octet-stream"
     )
   end
+
+  log_action("AppStore deployment") do
+    raise "iOS upload failed" unless system("xcrun altool --upload-app --type ios -f ../#{app_name}/build/ios/ipa/*.ipa --apiKey #{ENV["APPLE_API_KEY"]} --apiIssuer #{ENV["APPLE_ISSUER_ID"]}")
+  end
+
 rescue StandardError => e
   Dir.chdir(CURRENT_DIR)
   p e.message
