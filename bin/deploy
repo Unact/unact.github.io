@@ -34,11 +34,11 @@ options = {
   branch: "master"
 }
 OptionParser.new do |opt|
-  opt.on("-app", "--app_name APP_NAME", "Application repository name") { |o| options[:app_name] = o }
-  opt.on("-v", "--version VERSION", "Semantic version") { |o| options[:version] = o }
-  opt.on("-em", "--export-method", "iOS export method") { |o| options[:export_method] = o }
-  opt.on("-b", "--branch", "Git deployment branch") { |o| options[:branch] = o }
-end.parse!
+  opt.on("-a", "--app_name APP_NAME", "Application repository name")
+  opt.on("-v", "--version VERSION", "Semantic version")
+  opt.on("-e", "--export_method EXPORT_METHOD", "iOS export method")
+  opt.on("-b", "--branch BRANCH", "Git deployment branch")
+end.parse!(into: options)
 
 begin
   raise "Version not specified" if options[:version].nil?
