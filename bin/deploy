@@ -14,6 +14,7 @@ MOBILE_APPS = %w(
   palman
   forwarder
 )
+APP_STORE_EXPORT_METHOD = "app-store"
 CURRENT_DIR = Dir.pwd
 
 def print_log_action message
@@ -29,12 +30,14 @@ end
 options = {
   app_name: nil,
   version: nil,
-  enterprise: false
+  export_method: "ad-hoc",
+  branch: "master"
 }
 OptionParser.new do |opt|
   opt.on("-app", "--app_name APP_NAME", "Application repository name") { |o| options[:app_name] = o }
   opt.on("-v", "--version VERSION", "Semantic version") { |o| options[:version] = o }
-  opt.on("-e", "--enterprise", "Build enterprise app") { options[:enterprise] = true}
+  opt.on("-em", "--export-method", "iOS export method") { |o| options[:export_method] = o }
+  opt.on("-b", "--branch", "Git deployment branch") { |o| options[:branch] = o }
 end.parse!
 
 begin
@@ -60,7 +63,7 @@ begin
   Dir.chdir(app_path) do
     log_action("App build") do
       begin
-        raise "Git checkout failed" unless system("git checkout master")
+        raise "Git checkout failed" unless system("git checkout #{options[:branch]}")
         raise "Git pull failed" unless system("git pull")
 
         pubspec_path = "pubspec.yaml"
@@ -74,7 +77,7 @@ begin
 
         raise "Flutter clean" unless system("flutter clean")
         raise "Android build failed" unless system("flutter build apk --release #{build_args}")
-        raise "iOS ipa failed" unless system("flutter build ipa --release #{build_args} --export-method #{options[:enterprise] ? "enterprise" : "app-store"}")
+        raise "iOS ipa failed" unless system("flutter build ipa --release #{build_args} --export-method #{options[:export_method]}")
       rescue StandardError => e
         File.write(pubspec_path, pubspec_contents)
         raise e
@@ -145,10 +148,11 @@ begin
     )
   end
 
-  log_action("AppStore deployment") do
-    raise "iOS upload failed" unless system("xcrun altool --upload-app --type ios -f ../#{app_name}/build/ios/ipa/*.ipa --apiKey #{ENV["APPLE_API_KEY"]} --apiIssuer #{ENV["APPLE_ISSUER_ID"]}")
+  if options[:export_method] == APP_STORE_EXPORT_METHOD
+    log_action("AppStore deployment") do
+      raise "iOS upload failed" unless system("xcrun altool --upload-app --type ios -f ../#{app_name}/build/ios/ipa/*.ipa --apiKey #{ENV["APPLE_API_KEY"]} --apiIssuer #{ENV["APPLE_ISSUER_ID"]}")
+    end
   end
-
 rescue StandardError => e
   Dir.chdir(CURRENT_DIR)
   p e.message
