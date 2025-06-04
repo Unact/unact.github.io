@@ -13,6 +13,7 @@ MOBILE_APPS_PATH = "mobile_apps"
 MOBILE_APPS = %w(
   palman
   forwarder
+  umr
 )
 APP_STORE_EXPORT_METHOD = "app-store"
 CURRENT_DIR = Dir.pwd
