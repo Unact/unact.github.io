@@ -96,14 +96,15 @@ begin
   if old_version != new_version
     log_action("Website version change") do
       manifest_path = "#{MOBILE_APPS_PATH}/#{app_name}/manifest.plist"
-      break unless File.exist?(manifest_path)
 
-      manifest_contents = File.read(manifest_path)
-      new_contents = manifest_contents.gsub(
-        old_version,
-        new_version
-      )
-      File.write(manifest_path, new_contents)
+      if File.exist?(manifest_path)
+        manifest_contents = File.read(manifest_path)
+        new_contents = manifest_contents.gsub(
+          old_version,
+          new_version
+        )
+        File.write(manifest_path, new_contents)
+      end
 
       index_path = "index.html"
       index_contents = File.read(index_path)
