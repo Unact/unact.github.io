@@ -104,6 +104,7 @@ begin
           new_version
         )
         File.write(manifest_path, new_contents)
+        raise "Git add failed" unless system("git add #{manifest_path}")
       end
 
       index_path = "index.html"
@@ -114,7 +115,6 @@ begin
       )
       File.write(index_path, new_contents)
 
-      raise "Git add failed" unless system("git add #{manifest_path}")
       raise "Git add failed" unless system("git add #{index_path}")
       raise "Git commit failed" unless system("git commit -S -m '#{app_name} #{new_version}'")
       raise "Git push failed" unless system("git push")
